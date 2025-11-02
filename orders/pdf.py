@@ -1,172 +1,217 @@
 from io import BytesIO
+from datetime import datetime, date
 from reportlab.lib.pagesizes import A4
-from reportlab.lib.units import mm
-from reportlab.pdfgen import canvas
-from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
-from reportlab.platypus import Paragraph, Frame, Table, TableStyle, Image
 from reportlab.lib import colors
-from reportlab.lib.enums import TA_LEFT, TA_CENTER
-import os
-
-styles = getSampleStyleSheet()
-style_normal = ParagraphStyle(
-    "normal_custom",
-    parent=styles["Normal"],
-    fontName="Helvetica",
-    fontSize=9,
-    leading=11,
-    alignment=TA_LEFT,
+from reportlab.lib.enums import TA_CENTER
+from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+from reportlab.platypus import (
+    SimpleDocTemplate,
+    Paragraph,
+    Table,
+    TableStyle,
+    Spacer,
+    Image,
 )
-style_bold = ParagraphStyle(
-    "bold_custom",
-    parent=styles["Normal"],
-    fontName="Helvetica-Bold",
-    fontSize=10,
-    leading=12,
-    alignment=TA_LEFT,
-)
-style_center = ParagraphStyle(
-    "center_custom",
-    parent=styles["Normal"],
-    fontName="Helvetica",
-    fontSize=9,
-    alignment=TA_CENTER,
-)
+from reportlab.pdfgen import canvas
 
-def draw_paragraph(c, text, x, y, w, h, style=style_normal):
-    """Renderiza texto multilínea dentro de un área."""
-    p = Paragraph(str(text).replace("\n", "<br/>"), style)
-    frame = Frame(x, y, w, h, showBoundary=0)
-    frame.addFromList([p], c)
 
-def build_pdf(data: dict) -> bytes:
+class NumberedCanvas(canvas.Canvas):
+    """
+    Canvas personalizado para agregar número de página y pie validado.
+    """
+    def __init__(self, *args, tecnico="Desconocido", **kwargs):
+        super().__init__(*args, **kwargs)
+        self._saved_page_states = []
+        self.tecnico = tecnico
+
+    def showPage(self):
+        self._saved_page_states.append(dict(self.__dict__))
+        self._startPage()
+
+    def save(self):
+        """
+        Recorre todas las páginas para escribir el pie con número total.
+        """
+        total_pages = len(self._saved_page_states)
+        for state in self._saved_page_states:
+            self.__dict__.update(state)
+            self.draw_footer(total_pages)
+            super().showPage()
+        super().save()
+
+    def draw_footer(self, total_pages):
+        """
+        Dibuja el pie de validación y numeración.
+        """
+        width, height = A4
+        self.saveState()
+
+        # Línea divisoria gris
+        self.setStrokeColor(colors.HexColor("#cccccc"))
+        self.setLineWidth(0.7)
+        self.line(40, 55, width - 40, 55)
+
+        # Fecha de generación
+        fecha_generacion = datetime.now().strftime("%d/%m/%Y %H:%M:%S")
+        texto = f"📄 Documento generado automáticamente el {fecha_generacion} por {self.tecnico}."
+        self.setFont("Helvetica", 8)
+        self.setFillColor(colors.HexColor("#666666"))
+        self.drawCentredString(width / 2.0, 43, texto)
+
+        # Número de página (alineado a la derecha)
+        page_number = f"Página {self._pageNumber} de {total_pages}"
+        self.drawRightString(width - 40, 30, page_number)
+
+        self.restoreState()
+
+
+def build_pdf(data):
     buffer = BytesIO()
-    c = canvas.Canvas(buffer, pagesize=A4)
-    W, H = A4
-    margin_x = 15 * mm
-    y = H - 25 * mm
 
-    # 🟦 LOGO + TÍTULO
-    logo_path = os.path.join("static", "logo.png")
-    if os.path.exists(logo_path):
-        c.drawImage(logo_path, margin_x, H - 30 * mm, width=30 * mm, height=20 * mm, preserveAspectRatio=True)
-    c.setFont("Helvetica-Bold", 14)
-    c.drawCentredString(W / 2, H - 25 * mm, "ORDEN DE TRABAJO – PARTE DE MANTENIMIENTO")
-    y -= 15 * mm
+    # Técnico responsable
+    tecnico = "Desconocido"
+    if data.get("legajos") and data["legajos"][0].get("nombre"):
+        tecnico = data["legajos"][0]["nombre"]
 
-    # 🟨 1. DATOS GENERALES
-    c.setFont("Helvetica-Bold", 11)
-    c.drawString(margin_x, y, "1. Datos generales")
-    y -= 8 * mm
+    # Configuración del documento
+    doc = SimpleDocTemplate(
+        buffer,
+        pagesize=A4,
+        leftMargin=40,
+        rightMargin=40,
+        topMargin=40,
+        bottomMargin=70,  # espacio para el pie
+    )
 
-    info = [
+    styles = getSampleStyleSheet()
+    style_title = ParagraphStyle(
+        name="Title",
+        fontSize=14,
+        leading=16,
+        alignment=TA_CENTER,
+        textColor=colors.HexColor("#0a4a87"),
+        spaceAfter=18,
+    )
+    style_section = ParagraphStyle(
+        name="Section",
+        fontSize=12,
+        leading=14,
+        textColor=colors.HexColor("#333333"),
+        spaceAfter=6,
+        spaceBefore=10,
+    )
+    style_normal = styles["Normal"]
+
+    elements = []
+
+    # --- LOGO (opcional) ---
+    logo_path = "static/logo_ausol.png"
+    try:
+        import os
+        if os.path.exists(logo_path):
+            logo = Image(logo_path, width=80, height=40)
+            logo.hAlign = "LEFT"
+            elements.append(logo)
+            elements.append(Spacer(1, 6))
+    except Exception as e:
+        print("⚠️ No se pudo cargar el logo:", e)
+
+    # --- TITULO ---
+    elements.append(Paragraph("ORDEN DE TRABAJO – PARTE DE MANTENIMIENTO", style_title))
+    elements.append(Spacer(1, 10))
+
+    # --- DATOS GENERALES ---
+    elements.append(Paragraph("<b>1. Datos generales</b>", style_section))
+    tabla_datos = [
         ["Fecha", data.get("fecha", "")],
         ["Centro de costos", data.get("centro_costos", "")],
         ["Ubicación", data.get("ubicacion", "")],
         ["Tipo de mantenimiento", data.get("tipo_mantenimiento", "")],
         ["Prioridad", data.get("prioridad", "")],
     ]
-    t = Table(info, colWidths=[45 * mm, 125 * mm])
-    t.setStyle(TableStyle([
-        ("BOX", (0,0), (-1,-1), 0.5, colors.black),
-        ("INNERGRID", (0,0), (-1,-1), 0.25, colors.grey),
-        ("BACKGROUND", (0,0), (0,-1), colors.whitesmoke),
-        ("FONT", (0,0), (-1,-1), "Helvetica", 9),
-    ]))
-    t.wrapOn(c, W, H)
-    h_table = len(info) * 8 * mm
-    t.drawOn(c, margin_x, y - h_table)
-    y -= h_table + 15 * mm
+    t1 = Table(tabla_datos, colWidths=[160, 340])
+    t1.setStyle(
+        TableStyle(
+            [
+                ("GRID", (0, 0), (-1, -1), 0.5, colors.grey),
+                ("ALIGN", (0, 0), (-1, -1), "LEFT"),
+            ]
+        )
+    )
+    elements.append(t1)
+    elements.append(Spacer(1, 12))
 
-    # 🟧 2. TÍTULO DE LA TAREA
-    c.setFont("Helvetica-Bold", 11)
-    c.drawString(margin_x, y, "2. Título de la tarea")
-    y -= 6 * mm
-    tarea_text = data.get("tarea", "—")
-    draw_paragraph(c, tarea_text, margin_x, y - 10 * mm, 180 * mm, 10 * mm)
-    y -= 18 * mm
+    # --- TAREA ---
+    elements.append(Paragraph("<b>2. Título de la tarea</b>", style_section))
+    elements.append(Paragraph(data.get("tarea", ""), style_normal))
+    elements.append(Spacer(1, 10))
 
-    # 3. Descripción de la tarea
-    c.setFont("Helvetica-Bold", 11)
-    c.drawString(margin_x, y, "3. Descripción de la tarea")
-    y -= 6 * mm
-    obs_text = data.get("observaciones", "—")
-    draw_paragraph(c, obs_text, margin_x, y - 90 * mm, 180 * mm, 90 * mm)  # ← subí a 90mm
-    y -= 100 * mm
+    elements.append(Paragraph("<b>3. Descripción de la tarea</b>", style_section))
+    observaciones = data.get("observaciones", "").replace("\n", "<br/>")
+    elements.append(Paragraph(observaciones, style_normal))
+    elements.append(Spacer(1, 10))
 
+    # --- TABLEROS ---
+    elements.append(Paragraph("<b>4. Tablero(s) intervenido(s) y Circuitos</b>", style_section))
+    tableros = ", ".join(data.get("tableros", []))
+    elements.append(Paragraph(f"<b>Tableros:</b> {tableros}", style_normal))
+    elements.append(Paragraph(f"<b>Circuito(s):</b> {data.get('circuitos', '')}", style_normal))
+    elements.append(Spacer(1, 10))
 
-    # 🟦 4. TABLEROS Y CIRCUITOS
-    c.setFont("Helvetica-Bold", 11)
-    c.drawString(margin_x, y, "4. Tablero(s) intervenido(s) y Circuitos")
-    y -= 6 * mm
-    tableros = data.get("tableros", [])
-    if isinstance(tableros, list):
-        tablero_text = ", ".join(tableros) if tableros else "—"
+    # --- HORARIOS Y TECNICOS ---
+    elements.append(Paragraph("<b>5. Horarios y técnicos</b>", style_section))
+    elements.append(
+        Paragraph(
+            f"Hora inicio: {data.get('hora_inicio', '')} — Hora fin: {data.get('hora_fin', '')}",
+            style_normal,
+        )
+    )
+
+    if data.get("legajos"):
+        legajos_txt = ", ".join(
+            [f"{l.get('id', '')} - {l.get('nombre', '')}" for l in data["legajos"]]
+        )
+        elements.append(Paragraph(f"<b>Legajos:</b> {legajos_txt}", style_normal))
+    elements.append(Spacer(1, 10))
+
+    # --- MATERIALES ---
+    elements.append(Paragraph("<b>6. Materiales utilizados</b>", style_section))
+    if data.get("materiales"):
+        tabla_materiales = [["Material", "Cantidad", "Unidad"]]
+        for m in data["materiales"]:
+            tabla_materiales.append(
+                [m.get("material", ""), str(m.get("cant", "")), m.get("unidad", "")]
+            )
+        t2 = Table(tabla_materiales, colWidths=[300, 80, 80])
+        t2.setStyle(
+            TableStyle(
+                [
+                    ("GRID", (0, 0), (-1, -1), 0.5, colors.grey),
+                    ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#0a4a87")),
+                    ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
+                    ("ALIGN", (0, 0), (-1, -1), "CENTER"),
+                    ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
+                ]
+            )
+        )
+        elements.append(t2)
     else:
-        tablero_text = tableros or "—"
-    circuito_text = data.get("circuitos", "—")
-    texto = f"<b>Tableros:</b> {tablero_text}<br/><b>Circuito(s):</b> {circuito_text}"
-    draw_paragraph(c, texto, margin_x, y - 25 * mm, 180 * mm, 25 * mm)
-    y -= 33 * mm
+        elements.append(Paragraph("—", style_normal))
 
-    # 🟨 5. HORARIOS Y TÉCNICOS
-    c.setFont("Helvetica-Bold", 11)
-    c.drawString(margin_x, y, "5. Horarios y técnicos")
-    y -= 6 * mm
-    horarios = [["Hora inicio", data.get("hora_inicio", ""), "Hora fin", data.get("hora_fin", "")]]
-    th = Table(horarios, colWidths=[30 * mm, 55 * mm, 30 * mm, 55 * mm])
-    th.setStyle(TableStyle([
-        ("BOX", (0,0), (-1,-1), 0.5, colors.black),
-        ("BACKGROUND", (0,0), (0,-1), colors.whitesmoke),
-        ("BACKGROUND", (2,0), (2,-1), colors.whitesmoke),
-        ("FONT", (0,0), (-1,-1), "Helvetica", 9),
-    ]))
-    th.wrapOn(c, W, H)
-    th.drawOn(c, margin_x, y - 10 * mm)
-    y -= 22 * mm
+    # --- GENERAR PDF ---
+    doc.build(elements, canvasmaker=lambda *args, **kwargs: NumberedCanvas(*args, tecnico=tecnico, **kwargs))
 
-    # Legajos
-    c.setFont("Helvetica-Bold", 10)
-    c.drawString(margin_x, y, "Legajos:")
-    legajos = data.get("legajos", [])
-    texto_legajos = ", ".join(f"{lg.get('id','')} - {lg.get('nombre','')}" for lg in legajos) or "—"
-    draw_paragraph(c, texto_legajos, margin_x, y - 16 * mm, 180 * mm, 16 * mm)
-    y -= 28 * mm
-
-    # 🟫 6. MATERIALES UTILIZADOS
-    c.setFont("Helvetica-Bold", 11)
-    c.drawString(margin_x, y, "6. Materiales utilizados")
-    y -= 8 * mm
-    mats = data.get("materiales", [])
-    if mats:
-        mat_data = [["Material", "Cantidad", "Unidad"]] + [
-            [m.get("material",""), str(m.get("cant","")), m.get("unidad","")] for m in mats
-        ]
-        tm = Table(mat_data, colWidths=[100*mm, 40*mm, 40*mm])
-        tm.setStyle(TableStyle([
-            ("BOX", (0,0), (-1,-1), 0.5, colors.black),
-            ("INNERGRID", (0,0), (-1,-1), 0.25, colors.grey),
-            ("BACKGROUND", (0,0), (-1,0), colors.whitesmoke),
-            ("FONT", (0,0), (-1,0), "Helvetica-Bold", 9),
-            ("FONT", (0,1), (-1,-1), "Helvetica", 9),
-        ]))
-        tm.wrapOn(c, W, H)
-        tm.drawOn(c, margin_x, y - (len(mat_data)*6*mm))
-        y -= (len(mat_data)*6*mm + 10)
-    else:
-        draw_paragraph(c, "—", margin_x, y - 10*mm, 180*mm, 10*mm)
-        y -= 20 * mm
-
-    # 🖊️ PIE DE FIRMA
-    y_firma = 40 * mm
-    c.line(margin_x + 20 * mm, y_firma, margin_x + 80 * mm, y_firma)
-    c.line(W - 80 * mm, y_firma, W - 20 * mm, y_firma)
-    c.setFont("Helvetica", 9)
-    c.drawCentredString(margin_x + 50 * mm, y_firma - 5, "Firma Técnico Responsable")
-    c.drawCentredString(W - 50 * mm, y_firma - 5, "Firma Supervisor de Turno")
-
-    c.showPage()
-    c.save()
-    pdf = buffer.getvalue()
+    pdf_bytes = buffer.getvalue()
     buffer.close()
-    return pdf
+
+    # --- NOMBRE DINÁMICO DEL ARCHIVO ---
+    tablero = ""
+    if data.get("tableros"):
+        tablero = str(data["tableros"][0]).replace(" ", "_")
+    circuito = str(data.get("circuitos", "")).replace(" ", "_")
+    fecha = data.get("fecha", str(date.today()))
+
+    nombre_archivo = f"OT_{fecha}_{tablero}_{circuito or 'sinCircuito'}.pdf"
+    nombre_archivo = nombre_archivo.replace("__", "_")
+
+    return pdf_bytes, nombre_archivo
