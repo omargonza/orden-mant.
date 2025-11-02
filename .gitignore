@@ -1,0 +1,48 @@
+# --- Python general ---
+__pycache__/
+ *.py[cod]
+*$py.class
+
+# --- Entornos virtuales ---
+ 
+env/
+.venv/
+
+# --- Archivos temporales / logs ---
+*.log
+*.pot
+*.pyc
+*.pyo
+*.pyd
+*.sqlite3
+*.db
+db.sqlite3
+
+# --- Archivos de compilación / cache ---
+*.egg-info/
+.eggs/
+build/
+dist/
+
+# --- Archivos del sistema ---
+.DS_Store
+Thumbs.db
+
+# --- Configuración local ---
+.env
+.env.local
+.env.development
+.env.production
+
+# --- Archivos de editor ---
+.vscode/
+.idea/
+*.swp
+
+# --- Static / Media generados ---
+staticfiles/
+media/
+
+# --- Migraciones viejas (solo si las regenerás) ---
+# */migrations/*.py
+# !*/migrations/__init__.py
