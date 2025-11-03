@@ -7,6 +7,7 @@ from .pdf import build_pdf
 
 class OrdenPDFView(APIView):
     def post(self, request):
+        print("📩 Datos recibidos en el servidor:", request.data) 
         serializer = OrdenTrabajoSerializer(data=request.data)
 
         # 🔍 Agregamos este bloque para ver qué está fallando en Render
