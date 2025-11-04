@@ -1,11 +1,9 @@
 from rest_framework import serializers
 
 class MaterialSerializer(serializers.Serializer):
-    material = serializers.CharField()
-    # 📌 Acepta "8", "8.0", 8, 8.0, o vacío
+    nombre = serializers.CharField()  # 👈 en lugar de "material"
     cant = serializers.DecimalField(
-        max_digits=12, decimal_places=2,
-        required=False, allow_null=True
+        max_digits=12, decimal_places=2, required=False, allow_null=True
     )
     unidad = serializers.CharField(allow_blank=True, required=False)
 
