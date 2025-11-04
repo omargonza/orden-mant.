@@ -40,11 +40,11 @@ MIDDLEWARE = [
 
 # 🔸 CORS y CSRF
 CORS_ALLOWED_ORIGINS = [
-    "https://orden-mant-frontend.onrender.com",
+    "https://orden-mant-front.onrender.com",
 ]
 CSRF_TRUSTED_ORIGINS = [
     "https://orden-mant.onrender.com",
-    "https://orden-mant-frontend.onrender.com",
+    "https://orden-mant-front.onrender.com",
 ]
 
 # ⚠️ No uses CORS_ALLOW_ALL_ORIGINS=True en prod, lo mantenemos solo si DEBUG=True
