@@ -13,7 +13,7 @@ from reportlab.platypus import (
     Image,
 )
 from reportlab.pdfgen import canvas
-
+from django.contrib.staticfiles import finders
 
 class NumberedCanvas(canvas.Canvas):
     """
@@ -105,7 +105,7 @@ def build_pdf(data):
     elements = []
 
     # --- LOGO (opcional) ---
-    logo_path = "static/logo_ausol.png"
+    logo_path = finders.find("logo_ausol.png")
     try:
         import os
         if os.path.exists(logo_path):
@@ -215,3 +215,8 @@ def build_pdf(data):
     nombre_archivo = nombre_archivo.replace("__", "_")
 
     return pdf_bytes, nombre_archivo
+
+import logging
+logger = logging.getLogger(__name__)
+# Evitar referenciar `serializer` que no existe en este módulo; registrar información genérica.
+logger.debug("Módulo PDF cargado; llame a build_pdf(data) pasando un diccionario 'data' para generar PDFs.")

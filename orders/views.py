@@ -22,3 +22,4 @@ class OrdenPDFView(APIView):
         resp = HttpResponse(pdf_bytes, content_type="application/pdf")
         resp["Content-Disposition"] = f'attachment; filename="{nombre_archivo}"'
         return resp
+
