@@ -21,15 +21,15 @@ INSTALLED_APPS = [
     "django.contrib.messages",
     "django.contrib.staticfiles",
     "rest_framework",
-    "corsheaders",
+    "corsheaders",  # ✅ solo una vez
     "orders",
 ]
 
-# 🔸 Middlewares (⚠️ sin duplicar corsheaders)
+# 🔸 Middlewares
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
     "whitenoise.middleware.WhiteNoiseMiddleware",
-    "corsheaders.middleware.CorsMiddleware",  # ya insertado en la posición correcta
+    "corsheaders.middleware.CorsMiddleware",  # ✅ en la posición correcta
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
@@ -37,10 +37,8 @@ MIDDLEWARE = [
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
 ]
-# CORS CONFIG
-INSTALLED_APPS += ["corsheaders"]
-MIDDLEWARE.insert(0, "corsheaders.middleware.CorsMiddleware")
 
+# ✅ Configuración CORS correcta (sin duplicar)
 CORS_ALLOW_ALL_ORIGINS = False
 CORS_ALLOWED_ORIGINS = [
     "https://orden-mant-front.onrender.com",
@@ -96,16 +94,14 @@ USE_TZ = True
 # 🔸 Archivos estáticos
 STATIC_URL = "/static/"
 STATIC_ROOT = BASE_DIR / "staticfiles"
-
-# 🔸 WhiteNoise para servir estáticos en Render
 STATICFILES_STORAGE = "whitenoise.storage.CompressedManifestStaticFilesStorage"
 
-# 🔸 Archivos subidos (si usás media)
+# 🔸 Archivos media
 MEDIA_URL = "/media/"
 MEDIA_ROOT = BASE_DIR / "media"
 
 # 🔸 Campo por defecto
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
-# ✅ Puerto para Render (no es necesario si usás gunicorn)
+# 🔸 Puerto (opcional en Render)
 PORT = int(os.environ.get("PORT", 10000))
