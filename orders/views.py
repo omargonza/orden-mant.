@@ -10,6 +10,13 @@ import logging
 logger = logging.getLogger(__name__)
 
 class OrdenPDFView(APIView):
+    def options(self, request, *args, **kwargs):
+        response = HttpResponse()
+        response["Access-Control-Allow-Origin"] = "*"
+        response["Access-Control-Allow-Methods"] = "POST, OPTIONS"
+        response["Access-Control-Allow-Headers"] = "Content-Type"
+        return response
+    
     def post(self, request):
         logger.info("📩 Datos recibidos: %s", request.data)
         serializer = OrdenTrabajoSerializer(data=request.data)

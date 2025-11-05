@@ -37,19 +37,20 @@ MIDDLEWARE = [
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
 ]
+# CORS CONFIG
+INSTALLED_APPS += ["corsheaders"]
+MIDDLEWARE.insert(0, "corsheaders.middleware.CorsMiddleware")
 
-# 🔸 CORS y CSRF
+CORS_ALLOW_ALL_ORIGINS = False
 CORS_ALLOWED_ORIGINS = [
     "https://orden-mant-front.onrender.com",
 ]
 CSRF_TRUSTED_ORIGINS = [
-    "https://orden-mant.onrender.com",
     "https://orden-mant-front.onrender.com",
+    "https://orden-mant.onrender.com",
 ]
-
-# ⚠️ No uses CORS_ALLOW_ALL_ORIGINS=True en prod, lo mantenemos solo si DEBUG=True
-if DEBUG:
-    CORS_ALLOW_ALL_ORIGINS = True
+CORS_ALLOW_HEADERS = ["*"]
+CORS_ALLOW_METHODS = ["*"]
 
 # 🔸 URL principal
 ROOT_URLCONF = "core.urls"
