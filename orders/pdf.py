@@ -68,7 +68,7 @@ def build_pdf(data):
         elements.append(img)
 
     elements.append(
-        Paragraph("<b>YOQUET DISEÑOS</b><br/>ORDEN DE TRABAJO", styles["Titulo"])
+        Paragraph("<b>SECTOR MANTENIMIENTO ELECTRICO</b><br/>ORDEN DE TRABAJO", styles["Titulo"])
     )
     elements.append(Spacer(1, 12))
 
