@@ -10,7 +10,14 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # 🔐 Configuración básica
 SECRET_KEY = os.getenv("DJANGO_SECRET_KEY", "dev-secret-key")
 DEBUG = os.getenv("DJANGO_DEBUG", "1") == "1"
-ALLOWED_HOSTS = os.getenv("DJANGO_ALLOWED_HOSTS", "orden-mant.onrender.com,localhost,127.0.0.1").split(",")
+
+ALLOWED_HOSTS = [
+    h.strip() for h in os.getenv(
+        "DJANGO_ALLOWED_HOSTS",
+        "orden-mant.onrender.com,localhost,127.0.0.1"
+    ).split(",")
+]
+
 
 # 🔸 Aplicaciones instaladas
 INSTALLED_APPS = [

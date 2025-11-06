@@ -4,7 +4,9 @@ from rest_framework import status
 from django.http import HttpResponse
 from .serializers import OrdenTrabajoSerializer
 from .pdf import build_pdf
-
+ 
+ 
+ 
 class OrdenPDFView(APIView):
     def post(self, request):
         print("📥 Datos recibidos:", request.data)  # 👈 para depurar
