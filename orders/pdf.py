@@ -66,7 +66,7 @@ def build_pdf(data: dict):
         ("VALIGN", (0,0), (-1,-1), "MIDDLE"),
         ("INNERGRID", (0,0), (-1,-1), 0.25, colors.HexColor("#DDDDDD")),
         ("BOX", (0,0), (-1,-1), 0.6, colors.HexColor("#BBBBBB")),
-        ("BACKGROUND", (0,0), (-1,-1), colors.colorWithAlpha(colors.white, 1.0)),
+        ("BACKGROUND", (0,0), (-1,-1), colors.white),
     ]))
     elems.append(t)
     elems.append(Spacer(1, 8))
