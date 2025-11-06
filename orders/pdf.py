@@ -10,6 +10,7 @@ from reportlab.platypus import (
     Paragraph,
     Spacer,
     Image,
+    HRFlowable,
 )
 import io
 import datetime
@@ -18,6 +19,8 @@ import os
 
 def build_pdf(data):
     buffer = io.BytesIO()
+
+    # 📄 Configuración del documento
     doc = SimpleDocTemplate(
         buffer,
         pagesize=A4,
@@ -27,25 +30,27 @@ def build_pdf(data):
         bottomMargin=2 * cm,
     )
 
+    # 🧩 Estilos tipográficos
     styles = getSampleStyleSheet()
     styles.add(
         ParagraphStyle(
             name="Titulo",
-            fontSize=16,
+            fontSize=15,
             alignment=1,  # centrado
-            spaceAfter=14,
-            leading=20,
-            textColor=colors.HexColor("#1f1f1f"),
+            spaceAfter=12,
+            leading=18,
+            textColor=colors.HexColor("#003b73"),
+            fontName="Helvetica-Bold",
         )
     )
     styles.add(
         ParagraphStyle(
             name="Campo",
             fontSize=10.5,
-            leading=13,
+            leading=14,
             spaceAfter=4,
             fontName="Helvetica",
-            textColor=colors.HexColor("#333333"),
+            textColor=colors.HexColor("#2e2e2e"),
         )
     )
     styles.add(
@@ -53,26 +58,72 @@ def build_pdf(data):
             name="Seccion",
             fontSize=12,
             leading=16,
-            spaceAfter=8,
+            spaceAfter=6,
             fontName="Helvetica-Bold",
-            textColor=colors.HexColor("#1f3b73"),
+            textColor=colors.HexColor("#0d47a1"),
+        )
+    )
+    styles.add(
+        ParagraphStyle(
+            name="Pie",
+            fontSize=8.5,
+            leading=12,
+            alignment=1,
+            textColor=colors.HexColor("#555555"),
         )
     )
 
     elements = []
 
-    # 🏷️ Encabezado (logo opcional)
+    # ===============================
+    # 🏗️ ENCABEZADO CON LOGO Y DATOS
+    # ===============================
     logo_path = os.path.join(os.path.dirname(__file__), "logo.png")
+    header_data = []
+
     if os.path.exists(logo_path):
         img = Image(logo_path, width=3.5 * cm, height=3.5 * cm)
-        elements.append(img)
+        header_data.append([
+            img,
+            Paragraph(
+                "<b>SECTOR MANTENIMIENTO ELÉCTRICO</b><br/>ORDEN DE TRABAJO",
+                styles["Titulo"]
+            )
+        ])
+    else:
+        header_data.append([
+            "",
+            Paragraph(
+                "<b>SECTOR MANTENIMIENTO ELÉCTRICO</b><br/>ORDEN DE TRABAJO",
+                styles["Titulo"]
+            )
+        ])
 
-    elements.append(
-        Paragraph("<b>SECTOR MANTENIMIENTO ELECTRICO</b><br/>ORDEN DE TRABAJO", styles["Titulo"])
+    tabla_header = Table(header_data, colWidths=[4 * cm, 12 * cm])
+    tabla_header.setStyle(
+        TableStyle(
+            [
+                ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+                ("ALIGN", (1, 0), (1, 0), "CENTER"),
+            ]
+        )
     )
-    elements.append(Spacer(1, 12))
+    elements.append(tabla_header)
+    elements.append(Spacer(1, 4))
 
-    # 🗓️ Datos principales
+    # 🔵 Línea separadora azul
+    elements.append(
+        HRFlowable(width="100%", color=colors.HexColor("#0d47a1"), thickness=2, spaceBefore=4, spaceAfter=10)
+    )
+
+    # 🗓️ Fecha de emisión
+    fecha_gen = datetime.datetime.now().strftime("%d/%m/%Y %H:%M")
+    elements.append(Paragraph(f"<b>Emitido:</b> {fecha_gen}", styles["Campo"]))
+    elements.append(Spacer(1, 8))
+
+    # ===============================
+    # 📋 DATOS PRINCIPALES
+    # ===============================
     datos = [
         ["Fecha:", data["fecha"].strftime("%d/%m/%Y"), "Ubicación:", data["ubicacion"]],
         ["Tablero:", data["tablero"], "Circuito:", data["circuito"]],
@@ -83,42 +134,45 @@ def build_pdf(data):
             f"{data['km_inicial']} - {data['km_final']}",
         ],
     ]
+
     tabla_datos = Table(datos, colWidths=[2.5 * cm, 6 * cm, 2.5 * cm, 6 * cm])
     tabla_datos.setStyle(
         TableStyle(
             [
                 ("GRID", (0, 0), (-1, -1), 0.25, colors.grey),
-                ("BACKGROUND", (0, 0), (-1, 0), colors.whitesmoke),
                 ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
                 ("FONTNAME", (0, 0), (-1, -1), "Helvetica"),
                 ("FONTSIZE", (0, 0), (-1, -1), 9.5),
-                ("BOTTOMPADDING", (0, 0), (-1, -1), 4),
+                ("BACKGROUND", (0, 0), (-1, -1), colors.whitesmoke),
             ]
         )
     )
     elements.append(tabla_datos)
-    elements.append(Spacer(1, 10))
+    elements.append(Spacer(1, 12))
 
-    # 🧰 Sección de tareas
-    elements.append(Paragraph("TAREA PEDIDA", styles["Seccion"]))
-    elements.append(Paragraph(data.get("tarea_pedida", "—"), styles["Campo"]))
-    elements.append(Spacer(1, 6))
+    # ===============================
+    # 🧰 SECCIONES DE TAREAS
+    # ===============================
+    for titulo, key in [
+        ("TAREA PEDIDA", "tarea_pedida"),
+        ("TAREA REALIZADA", "tarea_realizada"),
+        ("TAREA PENDIENTE", "tarea_pendiente"),
+    ]:
+        elements.append(Paragraph(titulo, styles["Seccion"]))
+        elements.append(Paragraph(data.get(key, "—"), styles["Campo"]))
+        elements.append(Spacer(1, 6))
 
-    elements.append(Paragraph("TAREA REALIZADA", styles["Seccion"]))
-    elements.append(Paragraph(data.get("tarea_realizada", "—"), styles["Campo"]))
-    elements.append(Spacer(1, 6))
-
-    elements.append(Paragraph("TAREA PENDIENTE", styles["Seccion"]))
-    elements.append(Paragraph(data.get("tarea_pendiente", "—"), styles["Campo"]))
-    elements.append(Spacer(1, 10))
-
-    # 💡 Luminarias
+    # ===============================
+    # 💡 LUMINARIAS / EQUIPOS
+    # ===============================
     if data.get("luminaria_equipos"):
         elements.append(Paragraph("LUMINARIAS / EQUIPOS", styles["Seccion"]))
         elements.append(Paragraph(data["luminaria_equipos"], styles["Campo"]))
         elements.append(Spacer(1, 10))
 
-    # 👷 Técnicos
+    # ===============================
+    # 👷 TÉCNICOS
+    # ===============================
     if data.get("tecnicos"):
         elements.append(Paragraph("TÉCNICOS", styles["Seccion"]))
         tecnicos_texto = "<br/>".join(
@@ -127,7 +181,9 @@ def build_pdf(data):
         elements.append(Paragraph(tecnicos_texto, styles["Campo"]))
         elements.append(Spacer(1, 10))
 
-    # 🔩 Materiales
+    # ===============================
+    # 🔩 MATERIALES UTILIZADOS
+    # ===============================
     if data.get("materiales"):
         elements.append(Paragraph("MATERIALES UTILIZADOS", styles["Seccion"]))
         filas = [["Material", "Cantidad", "Unidad"]] + [
@@ -138,7 +194,7 @@ def build_pdf(data):
             TableStyle(
                 [
                     ("GRID", (0, 0), (-1, -1), 0.3, colors.grey),
-                    ("BACKGROUND", (0, 0), (-1, 0), colors.lightgrey),
+                    ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#e3f2fd")),
                     ("ALIGN", (1, 1), (-1, -1), "CENTER"),
                     ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
                     ("FONTSIZE", (0, 0), (-1, -1), 9.5),
@@ -148,14 +204,20 @@ def build_pdf(data):
         elements.append(tabla_mat)
         elements.append(Spacer(1, 18))
 
-    # ✍️ Pie
-    fecha_gen = datetime.datetime.now().strftime("%d/%m/%Y %H:%M")
-    pie = f"Generado automáticamente el {fecha_gen} — Yoquet Diseños"
-    elements.append(Spacer(1, 10))
-    elements.append(Paragraph(pie, styles["Campo"]))
+    # ===============================
+    # 📜 PIE DE PÁGINA CON COPYRIGHT
+    # ===============================
+    fecha_impresion = datetime.datetime.now().strftime("%Y")
+    pie_texto = f"© {fecha_impresion}  Sistema de Mantenimiento del Sector Eléctrico — Desarrollado por conurbaDEV"
+    elements.append(Spacer(1, 14))
+    elements.append(Paragraph(pie_texto, styles["Pie"]))
 
-    # 🔚 Generación
+    # ===============================
+    # 🔚 GENERACIÓN DEL PDF
+    # ===============================
     doc.build(elements)
     pdf = buffer.getvalue()
     buffer.close()
-    return pdf, f"orden_trabajo_{data['fecha']}.pdf"
+
+    nombre_archivo = f"orden_trabajo_{data['fecha']}.pdf"
+    return pdf, nombre_archivo
